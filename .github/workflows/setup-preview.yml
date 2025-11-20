@@ -3,6 +3,11 @@ name: Setup Preview Environment
 # Run this workflow once to create the initial Cloudflare resources
 # After running, copy the D1 database ID from the output and add it as
 # the PREVIEW_D1_DATABASE_ID secret in your GitHub repository settings
+#
+# Required GitHub Secrets:
+# - CLOUDFLARE_API_TOKEN: Cloudflare API token with permissions to manage Workers, D1, and R2
+# - CLOUDFLARE_ACCOUNT_ID: Your Cloudflare account ID
+# - PREVIEW_PAYLOAD_SECRET: Secret key for Payload CMS authentication (generate with: openssl rand -hex 32) (e.g. 1b85f46782e4c1e5fb9b3f8f160de392ca9e0d5350a3deb4f28f0e045690c1861b85f46782e4c1e5fb9b3f8f160de392ca9e0d5350a3deb4f28f0e045690c186)
 
 on:
   workflow_dispatch:
@@ -51,6 +56,13 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: r2 bucket create ${{ env.PREVIEW_R2_NAME }}
         continue-on-error: true
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --env preview
 
       - name: Set PAYLOAD_SECRET
         uses: cloudflare/wrangler-action@v3
