@@ -57,6 +57,20 @@ jobs:
           command: r2 bucket create ${{ env.PREVIEW_R2_NAME }}
         continue-on-error: true
 
+      - name: Get D1 database ID
+        id: get-d1-id
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 list --json
+
+      - name: Extract and update database ID
+        run: |
+          D1_ID=$(echo '${{ steps.get-d1-id.outputs.command-output }}' | python3 -m json.tool | grep -A 3 '"name": "${{ env.PREVIEW_D1_NAME }}"' | grep '"uuid"' | cut -d'"' -f4)
+          echo "Database ID: $D1_ID"
+          sed -i "s/\"database_id\": \"DATABASE_ID\",/\"database_id\": \"$D1_ID\",/g" wrangler.jsonc
+
       - name: Deploy application
         run: CLOUDFLARE_ENV=preview pnpm run deploy
         env:
@@ -64,13 +78,6 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           PAYLOAD_SECRET: ${{ secrets.PREVIEW_PAYLOAD_SECRET }}
           NODE_ENV: production # just tells Next.js to do a production build (optimized), but doesn't affect the Cloudflare environment
-
-      - name: Get D1 database info
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: d1 info ${{ env.PREVIEW_D1_NAME }}
 
       - name: Setup complete
         run: |
