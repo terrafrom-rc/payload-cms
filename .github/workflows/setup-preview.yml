@@ -1,0 +1,88 @@
+name: Setup Preview Environment
+
+# Run this workflow once to create the initial Cloudflare resources
+# After running, copy the D1 database ID from the output and add it as
+# the PREVIEW_D1_DATABASE_ID secret in your GitHub repository settings
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PREVIEW_WORKER_NAME: my-app-preview
+  PREVIEW_D1_NAME: my-app-preview
+  PREVIEW_R2_NAME: my-app-preview
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Create D1 database
+        id: create-d1
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 create ${{ env.PREVIEW_D1_NAME }}
+        continue-on-error: true
+
+      - name: Create R2 bucket
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: r2 bucket create ${{ env.PREVIEW_R2_NAME }}
+        continue-on-error: true
+
+      - name: Set PAYLOAD_SECRET
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: secret put PAYLOAD_SECRET --name ${{ env.PREVIEW_WORKER_NAME }}
+          secrets: |
+            PAYLOAD_SECRET
+        env:
+          PAYLOAD_SECRET: ${{ secrets.PREVIEW_PAYLOAD_SECRET }}
+
+      - name: Get D1 database info
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 info ${{ env.PREVIEW_D1_NAME }}
+
+      - name: Setup complete
+        run: |
+          echo "=========================================="
+          echo "Preview environment setup complete!"
+          echo "=========================================="
+          echo ""
+          echo "Next steps:"
+          echo "1. Copy the 'database_id' from the D1 info output above"
+          echo "2. Add it as PREVIEW_D1_DATABASE_ID secret in GitHub"
+          echo "   Settings > Secrets and variables > Actions > New repository secret"
+          echo ""
+          echo "Resources created:"
+          echo "- D1 database: ${{ env.PREVIEW_D1_NAME }}"
+          echo "- R2 bucket: ${{ env.PREVIEW_R2_NAME }}"
+          echo "- Worker secret: PAYLOAD_SECRET"
+          echo "=========================================="

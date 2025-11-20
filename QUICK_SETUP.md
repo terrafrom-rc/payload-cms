@@ -36,6 +36,21 @@ pnpm run create-super-admin
 
 ### 1. Authenticate with Cloudflare
 
+**Option A: API Token (Recommended for CI/CD)**
+
+1. Go to https://dash.cloudflare.com/profile/api-tokens
+2. Create Custom Token with permissions:
+   - Account > Workers Scripts > Edit
+   - Account > D1 > Edit
+   - Account > Workers R2 Storage > Edit
+3. Set the environment variable:
+
+```bash
+export CLOUDFLARE_API_TOKEN="your-api-token-here"
+```
+
+**Option B: OAuth Login (Interactive)**
+
 ```bash
 pnpm wrangler login
 ```
@@ -162,10 +177,17 @@ pnpm wrangler login
 
 ## How Wrangler Authentication Works
 
-When you run `pnpm wrangler login`, it:
-1. Opens a browser for OAuth with Cloudflare
-2. Stores credentials in `~/.wrangler/config/default.toml`
+Wrangler supports two authentication methods:
 
-This is why you don't need to provide an API token for wrangler commands - it uses the stored OAuth credentials.
+### API Token (Recommended)
+Set `CLOUDFLARE_API_TOKEN` environment variable. Best for:
+- CI/CD pipelines
+- Scripted deployments
+- Team environments
 
-For CI/CD, use `CLOUDFLARE_API_TOKEN` environment variable instead.
+### OAuth Login
+Run `pnpm wrangler login` to authenticate via browser. Credentials are stored in `~/.wrangler/config/default.toml`. Best for:
+- Local development
+- Quick manual deployments
+
+The API token takes precedence over OAuth credentials when both are available.

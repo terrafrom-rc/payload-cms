@@ -1,0 +1,121 @@
+name: Pull Request - Preview Deploy
+
+# Prerequisites (run once manually with our setup-preview.yml):
+# 1. pnpm wrangler d1 create my-app-preview
+# 2. pnpm wrangler r2 bucket create my-app-preview
+# 3. Update PREVIEW_D1_DATABASE_ID secret in GitHub
+# 4. openssl rand -base64 32 | pnpm wrangler secret put PAYLOAD_SECRET --name my-app-preview
+
+# GitHub secrets needed:
+# CLOUDFLARE_API_TOKEN
+# CLOUDFLARE_ACCOUNT_ID
+# PREVIEW_D1_DATABASE_ID (from D1 creation output)
+
+# What happens on each PR:
+# 1. Updates wrangler config for preview environment
+# 2. Runs migrations
+# 3. Deploys worker code
+# 4. Comments preview URL on PR
+
+# All PRs share the same preview D1/R2, so they can affect each other's data. Update <your-subdomain> in the workflow to your actual Cloudflare subdomain
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "package.json"
+      - "wrangler.jsonc"
+      - ".github/workflows/pr-preview.yml"
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  deployments: write
+
+env:
+  PREVIEW_WORKER_NAME: my-app-preview
+  PREVIEW_D1_NAME: my-app-preview
+  PREVIEW_R2_NAME: my-app-preview
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Update wrangler.jsonc for preview
+        run: |
+          sed -i 's/"database_id": "DATABASE_ID"/"database_id": "${{ secrets.PREVIEW_D1_DATABASE_ID }}"/' wrangler.jsonc
+          sed -i 's/"database_name": "my-app"/"database_name": "${{ env.PREVIEW_D1_NAME }}"/' wrangler.jsonc
+          sed -i 's/"bucket_name": "my-app"/"bucket_name": "${{ env.PREVIEW_R2_NAME }}"/' wrangler.jsonc
+          sed -i 's/"name": "my-app"/"name": "${{ env.PREVIEW_WORKER_NAME }}"/' wrangler.jsonc
+
+      - name: Run migrations
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 migrations apply ${{ env.PREVIEW_D1_NAME }} --remote
+        continue-on-error: true
+
+      - name: Deploy preview
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+
+      - name: Comment preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const workerName = '${{ env.PREVIEW_WORKER_NAME }}';
+            const previewUrl = `https://${workerName}.<your-subdomain>.workers.dev`;
+            const marker = '<!-- cloudflare-workers-preview -->';
+            let body = `${marker}\n☁️ **Preview deployed!**\n\n`;
+            body += `🔗 **URL:** ${previewUrl}\n`;
+            body += `📝 **Admin:** ${previewUrl}/admin\n\n`;
+            body += `⚠️ _Shared preview environment - data may be affected by other PRs._`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+
+            const existingComment = comments.find(c => c.body.includes(marker));
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                comment_id: existingComment.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            }
