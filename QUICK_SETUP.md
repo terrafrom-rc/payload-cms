@@ -32,7 +32,7 @@ Visit http://localhost:3000/admin to access the admin panel.
 pnpm run create-super-admin
 ```
 
-## Deploying to Cloudflare
+## Initial deployment to Cloudflare
 
 ### 1. Authenticate with Cloudflare
 
@@ -61,7 +61,15 @@ This opens a browser for OAuth authentication. Credentials are stored in `~/.wra
 
 Go to https://dash.cloudflare.com → R2 Object Storage → Enable R2
 
-### 3. Create Cloudflare resources
+### 3. Create migrations (if starting fresh)
+
+**Note:** This project already has migrations in `src/migrations/`. Only run this if you're starting completely fresh or need to create new migrations after schema changes.
+
+```bash
+pnpm payload migrate:create
+```
+
+### 4. Create Cloudflare resources
 
 ```bash
 # Create D1 database
@@ -71,7 +79,10 @@ pnpm wrangler d1 create my-app
 pnpm wrangler r2 bucket create my-app
 ```
 
-### 4. Update wrangler.jsonc
+Note: whether you want local dev to conenct to deployed cf resources is up to you...it doesn't matter which you choose we can change it anytime anyways
+
+### 5. Update wrangler.jsonc (POSSIBLY OPTIONAL)
+This step could be optional if you said Yes from "Would you like Wrangler to add it on your behalf? … yes" after you ran "pnpm wrangler {d1 or r2 bucket} create my-app"
 
 Copy the `database_id` from the D1 creation output and update `wrangler.jsonc`:
 
@@ -79,20 +90,28 @@ Copy the `database_id` from the D1 creation output and update `wrangler.jsonc`:
 "d1_databases": [
   {
     "binding": "D1",
-    "database_id": "YOUR_DATABASE_ID_HERE",  // <-- Update this
+    "database_id": "YOUR_DATABASE_ID_HERE",  // <-- hould be different from other cf resources bindings
     "database_name": "my-app",
     "remote": true
   }
 ]
 ```
+```jsonc
+"r2_buckets": [
+  {
+    "binding": "R2",   // <-- Should be different from other cf resources bindings
+    "bucket_name": "my-app",
+  }
+]
+```
 
-### 5. Set PAYLOAD_SECRET
+### 6. Set PAYLOAD_SECRET
 
 ```bash
 openssl rand -base64 32 | pnpm wrangler secret put PAYLOAD_SECRET
 ```
 
-### 6. Deploy
+### 7. Deploy
 
 ```bash
 CLOUDFLARE_ENV= pnpm run deploy
