@@ -8,7 +8,8 @@ export const Posts: CollectionConfig = {
     defaultColumns: ['title', 'author', 'category', 'status', 'publishedAt'],
     preview: (doc) => {
       if (doc?.slug) {
-        return `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/blog/${doc.slug}`
+        // Return relative URL - Payload automatically constructs absolute URL from browser
+        return `/blog/${doc.slug}`
       }
       return null
     },
