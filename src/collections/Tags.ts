@@ -7,7 +7,10 @@ export const Tags: CollectionConfig = {
     defaultColumns: ['name', 'slug', 'updatedAt'],
   },
   access: {
-    read: () => true,
+    read: ({ req: { user } }) => {
+      // Require authentication (session or API key) to read tags
+      return !!user
+    },
     create: ({ req: { user } }) => {
       if (!user) return false
       return ['admin', 'marketing', 'product'].includes(user.role)

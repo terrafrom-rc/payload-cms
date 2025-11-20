@@ -6,10 +6,12 @@ export const Users: CollectionConfig = {
     useAsTitle: 'email',
     defaultColumns: ['email', 'role', 'name'],
   },
-  auth: true,
+  auth: {
+    useAPIKey: true, // Enable API key generation in admin dashboard
+  },
   access: {
-    // Anyone authenticated can read users (needed for relationships)
-    read: () => true,
+    // Require authentication (session or API key) to read users (needed for relationships)
+    read: ({ req: { user } }) => !!user,
     // Only super admins can create new users
     create: ({ req: { user } }) => {
       return user?.role === 'super-admin'

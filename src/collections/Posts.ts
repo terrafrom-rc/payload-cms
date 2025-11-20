@@ -16,14 +16,13 @@ export const Posts: CollectionConfig = {
   },
   access: {
     read: ({ req: { user } }) => {
-      // Public can read published posts
-      // Authenticated users can read all posts
+      // Authenticated users (including API key auth) can read all posts
       if (user) {
         return true
       }
-      return {
-        status: { equals: 'published' },
-      }
+
+      // No authentication - deny access
+      return false
     },
     create: ({ req: { user } }) => {
       // Admin, Marketing, and Product can create posts

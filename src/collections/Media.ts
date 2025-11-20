@@ -3,18 +3,24 @@ import type { CollectionConfig } from 'payload'
 export const Media: CollectionConfig = {
   slug: 'media',
   access: {
-    read: () => true,
+    read: ({ req: { user } }) => {
+      // Require authentication (session or API key) to read media
+      return !!user
+    },
     create: ({ req: { user } }) => {
-      // Viewers cannot create media
-      return user?.role !== 'viewer'
+      // Require authentication and viewers cannot create media
+      if (!user) return false
+      return user.role !== 'viewer'
     },
     update: ({ req: { user } }) => {
-      // Viewers cannot update media
-      return user?.role !== 'viewer'
+      // Require authentication and viewers cannot update media
+      if (!user) return false
+      return user.role !== 'viewer'
     },
     delete: ({ req: { user } }) => {
-      // Only super admins and admins can delete media
-      return user?.role === 'super-admin' || user?.role === 'admin'
+      // Require authentication and only super admins and admins can delete media
+      if (!user) return false
+      return user.role === 'super-admin' || user.role === 'admin'
     },
   },
   fields: [
