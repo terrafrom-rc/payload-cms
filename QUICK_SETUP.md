@@ -26,11 +26,9 @@ This uses Wrangler to simulate Cloudflare Workers locally with:
 
 Visit http://localhost:3000/admin to access the admin panel.
 
-### 3. Create a super admin user
+### 3. Create your first admin user
 
-```bash
-pnpm run create-super-admin
-```
+When you first visit the admin panel at http://localhost:3000/admin, Payload will automatically prompt you to create the first super admin user if the database is empty.
 
 ## Initial deployment to Cloudflare
 

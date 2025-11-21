@@ -42,20 +42,20 @@
 		// },
 	],
 	"env": {
-		"preview": {
-			"name": "my-app-preview",
+		"staging": {
+			"name": "my-app-staging",
 			"d1_databases": [
 				{
 					"binding": "D1",
 					"database_id": "DATABASE_ID",
-					"database_name": "my-app-preview",
+					"database_name": "my-app-staging",
 					"remote": true
 				}
 			],
 			"r2_buckets": [
 				{
 					"binding": "R2",
-					"bucket_name": "my-app-preview"
+					"bucket_name": "my-app-staging"
 				}
 			]
 		}
